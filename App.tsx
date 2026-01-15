@@ -1,48 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { BrainrotState, BrainrotEntry, BrainrotConcept, Rarity } from './types';
-import { Sparkles, Skull, RefreshCw, Grid, Trash2, Download, Box, Layers, Star } from 'lucide-react';
+import { Sparkles, Skull, RefreshCw, Grid, Trash2, Download, Box, Layers, Star, Info, Zap } from 'lucide-react';
 
-// Configuration for Rarity Tiers
-const RARITY_CONFIG: Record<Rarity, { color: string; border: string; bg: string; description: string; complexity: string }> = {
+const RARITY_CONFIG: Record<Rarity, { color: string; border: string; bg: string; glow: string; complexity: string }> = {
   Common: {
-    color: "text-neutral-400",
-    border: "border-neutral-600",
-    bg: "bg-neutral-800",
-    description: "Basic, everyday objects or simple creatures. Low detail.",
-    complexity: "Simple geometry, clean lines, basic textures, familiar objects with faces."
+    color: "text-slate-400",
+    border: "border-slate-700/50",
+    bg: "bg-slate-800/30",
+    glow: "shadow-slate-900/20",
+    complexity: "Simple absurd shapes, funny household objects with eyes, vibrant plastic textures."
   },
   Rare: {
     color: "text-blue-400",
-    border: "border-blue-500",
-    bg: "bg-blue-900/50",
-    description: "Uncommon, slight mutations or accessories.",
-    complexity: "Moderate detail, unique accessories, vibrant colors, expressive features."
+    border: "border-blue-500/30",
+    bg: "bg-blue-900/20",
+    glow: "shadow-blue-500/10",
+    complexity: "Bizarre character hybrids, expressive meme-faces, shiny toy-like materials."
   },
   Epic: {
     color: "text-purple-400",
-    border: "border-purple-500",
-    bg: "bg-purple-900/50",
-    description: "Impressive, glowing parts, complex lore.",
-    complexity: "High detail, glowing elements, particle effects, complex patterned textures."
+    border: "border-purple-500/30",
+    bg: "bg-purple-900/20",
+    glow: "shadow-purple-500/10",
+    complexity: "Surreal 3D entities, glowing neon parts, liquid or jelly-like shaders, very funny silhouettes."
   },
   Legendary: {
     color: "text-amber-400",
-    border: "border-amber-500",
-    bg: "bg-amber-900/50",
-    description: "Unique, powerful, aura effects, extremely detailed.",
-    complexity: "Very high complexity, floating parts, golden accents, divine or demonic aura, intricate armor or skin."
+    border: "border-amber-500/30",
+    bg: "bg-amber-900/20",
+    glow: "shadow-amber-500/10",
+    complexity: "High-tier brainrot icons, legendary meme-aura, gold-plated absurd items, complex funny animations implied."
   },
   Mythic: {
     color: "text-rose-500",
-    border: "border-rose-600",
-    bg: "bg-rose-900/50",
-    description: "Reality-breaking, glitchy, eldritch, abstract.",
-    complexity: "Insane complexity, glitch effects, non-euclidean geometry, multiple heads or limbs, cosmic horror elements, hyper-realistic textures."
+    border: "border-rose-500/30",
+    bg: "bg-rose-900/20",
+    glow: "shadow-rose-500/20",
+    complexity: "Reality-bending brainrot, glitch-core aesthetic, hyper-vibrant 3D nightmare-cute designs."
   }
 };
 
-// Sub-component for individual cards
 const BrainrotCard: React.FC<{
   entry: BrainrotEntry;
   onGenerate3D: (entry: BrainrotEntry) => void;
@@ -51,121 +49,110 @@ const BrainrotCard: React.FC<{
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const rarityStyle = RARITY_CONFIG[entry.rarity];
 
-  // Determine what to display based on view mode and data availability
   const is3DMode = viewMode === '3d';
   const has3DModel = !!entry.modelSheetUrl;
   const currentImageUrl = is3DMode && has3DModel ? entry.modelSheetUrl : entry.imageUrl;
   
-  // Handlers
   const handleDownload = () => {
-    // If in 3D mode but no model, don't download
     if (is3DMode && !has3DModel) return;
-    const suffix = is3DMode ? '-uefn-ref-sheet' : '';
+    const suffix = is3DMode ? '-brainrot-3d' : '-brainrot-concept';
     onDownload(currentImageUrl!, entry.name + suffix);
   };
 
-  const handleGenerate3D = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setViewMode('3d');
-    if (!has3DModel && !entry.isModelLoading) {
-      onGenerate3D(entry);
-    }
-  };
-
   return (
-    <div className={`group relative bg-neutral-900/80 backdrop-blur-sm border rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex flex-col ${rarityStyle.border} border-opacity-30 hover:border-opacity-100`}>
-      {/* Image Container */}
-      <div className="relative aspect-square overflow-hidden bg-neutral-950 group/image">
-        
-        {/* Main Content Render */}
+    <div className={`group relative flex flex-col rounded-[2rem] bg-neutral-900/40 border ${rarityStyle.border} backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl ${rarityStyle.glow} overflow-hidden`}>
+      <div className="relative aspect-square w-full overflow-hidden bg-black/20">
         {is3DMode && !has3DModel ? (
-          // 3D Loading / Empty State
-          <div className="w-full h-full flex flex-col items-center justify-center text-neutral-500 bg-neutral-900/50 gap-4 p-6 text-center">
+          <div className="flex h-full w-full flex-col items-center justify-center space-y-4 p-8 text-center bg-neutral-950/40">
             {entry.isModelLoading ? (
-              <>
-                <RefreshCw className="w-12 h-12 animate-spin text-purple-500" />
-                <p className="text-sm font-mono animate-pulse">Generando Blueprint 3D para UEFN...</p>
-              </>
+              <div className="space-y-3">
+                <RefreshCw className="mx-auto h-10 w-10 animate-spin text-purple-500" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-400/80">Extrayendo Esencia...</p>
+              </div>
             ) : (
-              <>
-                <Box className="w-12 h-12 opacity-20" />
-                <p className="text-sm">Vista de referencia para modelado 3D.</p>
+              <div className="space-y-4">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-neutral-800/50">
+                  <Box className="h-8 w-8 text-neutral-500" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-white">Asset para Modelar</p>
+                  <p className="text-[10px] text-neutral-500">Vista técnica sobre fondo gris.</p>
+                </div>
                 <button 
                   onClick={() => onGenerate3D(entry)}
-                  className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+                  className="rounded-full bg-white px-6 py-2 text-[10px] font-black uppercase tracking-widest text-black transition-transform hover:scale-105 active:scale-95"
                 >
-                  Generar Sheet
+                  Generar 3D Ref
                 </button>
-              </>
+              </div>
             )}
           </div>
-        ) : currentImageUrl ? (
-          // Image Display
+        ) : (
           <>
             <img 
-              src={currentImageUrl} 
+              src={currentImageUrl || 'https://via.placeholder.com/600x600?text=Cargando...'} 
               alt={entry.name}
-              className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
+              className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
             />
-            {/* Download Overlay */}
-            <div className="absolute inset-0 z-20 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+            <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent opacity-60" />
+            
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity duration-300 group-hover:opacity-100">
               <button 
                 onClick={handleDownload}
-                className="bg-white/90 hover:bg-white text-black font-bold py-3 px-6 rounded-full flex items-center gap-2 transition-all transform hover:scale-105 shadow-xl cursor-pointer"
+                className="flex items-center gap-2 rounded-full bg-white/90 px-6 py-3 font-bold text-black shadow-xl backdrop-blur-sm transition-all hover:bg-white hover:scale-110"
               >
-                <Download className="w-5 h-5" />
-                <span>Descargar {is3DMode ? 'Blueprint' : 'Imagen'}</span>
+                <Download className="h-4 w-4" />
+                <span className="text-xs uppercase tracking-tighter">Guardar PNG</span>
               </button>
             </div>
           </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-neutral-600">
-            <Skull className="w-12 h-12 opacity-20" />
-          </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent opacity-60 pointer-events-none"></div>
-        
-        {/* Rarity Badge */}
-        <div className={`absolute top-4 right-4 ${rarityStyle.bg} backdrop-blur-md px-3 py-1 rounded-full border ${rarityStyle.border} text-xs font-mono font-bold ${rarityStyle.color} z-10 pointer-events-none flex items-center gap-1 uppercase tracking-wider shadow-lg`}>
-          <Star className="w-3 h-3 fill-current" />
-          {entry.rarity}
+        <div className="absolute top-4 right-4 flex gap-1 rounded-full bg-black/50 p-1 backdrop-blur-md border border-white/10 z-30 shadow-lg">
+          <button 
+            onClick={() => setViewMode('2d')}
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${viewMode === '2d' ? 'bg-white text-black shadow-md' : 'text-white/60 hover:text-white'}`}
+            title="Vista Arte"
+          >
+            <Sparkles className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={() => setViewMode('3d')}
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${viewMode === '3d' ? 'bg-purple-500 text-white shadow-md' : 'text-white/60 hover:text-white'}`}
+            title="Vista Modelado"
+          >
+            <Box className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* View Mode Toggles */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-30">
-          <button 
-            onClick={(e) => { e.stopPropagation(); setViewMode('2d'); }}
-            className={`p-2 rounded-full backdrop-blur-md transition-all ${viewMode === '2d' ? 'bg-white text-black scale-110 shadow-lg' : 'bg-black/40 text-white/70 hover:bg-black/60'}`}
-            title="Vista Artística"
-          >
-            <Sparkles className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={handleGenerate3D}
-            className={`p-2 rounded-full backdrop-blur-md transition-all ${viewMode === '3d' ? 'bg-purple-500 text-white scale-110 shadow-lg' : 'bg-black/40 text-white/70 hover:bg-black/60'}`}
-            title="Vista 3D / UEFN"
-          >
-            <Box className="w-4 h-4" />
-          </button>
+        <div className={`absolute left-4 top-4 flex items-center gap-1.5 rounded-full ${rarityStyle.bg} px-3 py-1 border ${rarityStyle.border} backdrop-blur-md z-20`}>
+          <div className={`h-1.5 w-1.5 rounded-full ${rarityStyle.color.replace('text-', 'bg-')} animate-pulse`} />
+          <span className={`text-[9px] font-black uppercase tracking-widest ${rarityStyle.color}`}>{entry.rarity}</span>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-6 flex flex-col flex-grow relative">
-        <div className="absolute -top-10 left-6 pointer-events-none">
-          <h2 className="text-3xl font-black font-comic uppercase text-transparent bg-clip-text bg-gradient-to-br from-white to-neutral-400 drop-shadow-lg">
+      <div className="flex flex-grow flex-col p-6 pt-2">
+        <div className="relative -mt-10 mb-4 h-12 overflow-hidden">
+          <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-lg truncate">
             {entry.name}
-          </h2>
+          </h3>
         </div>
         
-        <div className="mt-2 space-y-4">
-          <div className={`flex items-start gap-2 ${rarityStyle.color}`}>
-            <Layers className="w-4 h-4 mt-1 flex-shrink-0" />
-            <p className="text-neutral-300 text-sm leading-relaxed font-medium">
+        <div className="flex-grow space-y-3">
+          <div className="flex items-start gap-2 rounded-2xl bg-white/5 p-3 border border-white/5">
+            <Info className="mt-0.5 h-3 w-3 flex-shrink-0 text-neutral-500" />
+            <p className="text-[11px] font-medium leading-relaxed text-neutral-300 line-clamp-3 break-words">
               {entry.lore}
             </p>
           </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
+          <div className="flex items-center gap-2 text-neutral-500">
+            <Zap className="h-3 w-3" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">Brainrot Certified</span>
+          </div>
+          <span className="text-[9px] font-mono text-neutral-600 uppercase">#RT-{entry.id.split('-')[0]}</span>
         </div>
       </div>
     </div>
@@ -180,13 +167,6 @@ const App: React.FC = () => {
     error: null,
   });
 
-  const updateEntry = (id: string, updates: Partial<BrainrotEntry>) => {
-    setState(prev => ({
-      ...prev,
-      entries: prev.entries.map(e => e.id === id ? { ...e, ...updates } : e)
-    }));
-  };
-
   const generateBrainrotBatch = async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
@@ -194,75 +174,54 @@ const App: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const rarityInfo = RARITY_CONFIG[selectedRarity];
 
-      // 1. Generate 3 Text Concepts at once
-      const textModel = 'gemini-3-flash-preview';
-      
       const schema: Schema = {
         type: Type.ARRAY,
         items: {
           type: Type.OBJECT,
           properties: {
-            name: {
-              type: Type.STRING,
-              description: "The name of the brainrot character/meme. Catchy, absurd, original.",
-            },
-            lore: {
-              type: Type.STRING,
-              description: "Short, funny, nonsensical description. Use Gen Z slang (Spanish/Spanglish).",
-            },
-            visualPrompt: {
-              type: Type.STRING,
-              description: "Detailed visual description for image generation (English).",
-            },
+            name: { type: Type.STRING, description: "Funny catchy name (max 15 chars)." },
+            lore: { type: Type.STRING, description: "Absurd funny description in Spanish for kids." },
+            visualPrompt: { type: Type.STRING, description: "Detailed visual description in English: focus on surreal 3D brainrot style." },
           },
           required: ["name", "lore", "visualPrompt"],
         },
       };
 
-      const systemInstruction = `You are a creative engine for "Brainrot" memes (viral, absurd, gen z humor).
-      User wants 3 NEW concepts with rarity: ${selectedRarity}.
-      
-      Rarity definition: ${rarityInfo.description}
-      Visual Complexity Guide: ${rarityInfo.complexity}
-      
-      Generate names and lore in Spanish/Spanglish. Visual prompts in English.`;
-
       const textResponse = await ai.models.generateContent({
-        model: textModel,
-        contents: "Generate 3 concepts.",
+        model: 'gemini-3-flash-preview',
+        contents: `Generate 5 unique ${selectedRarity} "Steal a Brainrot" style character concepts. 
+        Think of surreal, funny, vibrant 3D renders that children find hilarious. 
+        Mashups of food, objects, and internet memes.`,
         config: {
-          systemInstruction: systemInstruction,
+          systemInstruction: `You are the ultimate Brainrot Creator. 
+          Style: "Steal a Brainrot" aesthetic. 
+          Concepts: Surreal absurdism, funny silhouettes, Gen Alpha humor, vibrant toy-like renders. 
+          Complexity: ${rarityInfo.complexity}. 
+          Language: Spanish for lore, English for visual prompts. 
+          Names: Super catchy, max 15 chars.`,
           responseMimeType: "application/json",
           responseSchema: schema,
-          temperature: 1.4, // High chaos
+          temperature: 1.5,
         },
       });
 
       const concepts: BrainrotConcept[] = JSON.parse(textResponse.text || "[]");
       
-      if (!concepts || concepts.length === 0) {
-        throw new Error("Failed to generate concepts.");
-      }
-
-      // 2. Generate Images for all 3 concepts in parallel
       const newEntries: BrainrotEntry[] = await Promise.all(concepts.map(async (concept) => {
         try {
           const imageResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
-            contents: [
-              {
-                text: `Rarity: ${selectedRarity}. A high quality, 3d render, surreal meme art style. Visuals: ${concept.visualPrompt}. Complexity level: ${rarityInfo.complexity}`,
-              }
-            ],
+            contents: [{ 
+              text: `HIGH-QUALITY 3D RENDER, "Steal a Brainrot" aesthetic. Vibrant neon colors, glossy plastic and jelly textures, funny distorted features, Octane Render style. ${concept.visualPrompt}. Professional lighting, clean solid studio background, ultra-vibrant and kid-appealing.` 
+            }],
           });
 
           let base64Image = "";
-          if (imageResponse.candidates?.[0]?.content?.parts) {
-            for (const part of imageResponse.candidates[0].content.parts) {
-              if (part.inlineData && part.inlineData.data) {
-                base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                break;
-              }
+          const parts = imageResponse.candidates?.[0]?.content?.parts || [];
+          for (const part of parts) {
+            if (part.inlineData?.data) {
+              base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+              break;
             }
           }
 
@@ -273,15 +232,8 @@ const App: React.FC = () => {
             imageUrl: base64Image,
             timestamp: Date.now(),
           };
-        } catch (e) {
-          console.error("Error generating image for one item", e);
-          return {
-            ...concept,
-            rarity: selectedRarity,
-            id: crypto.randomUUID(),
-            imageUrl: "",
-            timestamp: Date.now(),
-          };
+        } catch {
+          return { ...concept, rarity: selectedRarity, id: crypto.randomUUID(), imageUrl: "", timestamp: Date.now() };
         }
       }));
 
@@ -291,202 +243,171 @@ const App: React.FC = () => {
         error: null,
       }));
 
-    } catch (err: any) {
-      console.error(err);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: "Algo explotó en la fábrica de memes. Intenta de nuevo.",
-      }));
+    } catch (err) {
+      setState(prev => ({ ...prev, isLoading: false, error: "Fallo en la fábrica de Brainrot. Intenta de nuevo." }));
     }
   };
 
   const generateModelSheet = async (entry: BrainrotEntry) => {
-    updateEntry(entry.id, { isModelLoading: true });
+    setState(prev => ({
+      ...prev,
+      entries: prev.entries.map(e => e.id === entry.id ? { ...e, isModelLoading: true } : e)
+    }));
+
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const rarityInfo = RARITY_CONFIG[entry.rarity];
-        
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: [
-                { text: `Create a professional 3D character reference sheet (T-Pose) for a video game asset. Include Front View, Side View, and Back View. Character: ${entry.name}. Description: ${entry.visualPrompt}. Style: Fortnite UEFN art style, high fidelity, neutral background, flat lighting for modeling reference, orthographic projection. Complexity: ${rarityInfo.complexity}` }
-            ]
-        });
-        
-        let base64Image = "";
-        if (response.candidates?.[0]?.content?.parts) {
-          for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData && part.inlineData.data) {
-              base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-              break;
-            }
-          }
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: [{ 
+          text: `TECHNICAL ISOMETRIC 3D SCAN REFERENCE. Character: ${entry.visualPrompt}. 
+          RULES: Exact same colors and funny form as original. Background: Solid flat neutral gray #808080. 
+          Subject must be perfectly isolated. No effects, no floor, high contrast for 3D modeling. "Steal a Brainrot" style.` 
+        }]
+      });
+      
+      let base64Image = "";
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          break;
         }
+      }
 
-        if (!base64Image) throw new Error("Failed to generate model sheet");
-        updateEntry(entry.id, { modelSheetUrl: base64Image, isModelLoading: false });
-
-    } catch (e) {
-        console.error("Error generating model sheet", e);
-        updateEntry(entry.id, { isModelLoading: false });
-        alert("No se pudo generar la referencia 3D. Intenta de nuevo.");
+      setState(prev => ({
+        ...prev,
+        entries: prev.entries.map(e => e.id === entry.id ? { ...e, modelSheetUrl: base64Image, isModelLoading: false } : e)
+      }));
+    } catch {
+      setState(prev => ({
+        ...prev,
+        entries: prev.entries.map(e => e.id === entry.id ? { ...e, isModelLoading: false } : e)
+      }));
     }
-  }
-
-  const clearPokedex = () => {
-    if (confirm("¿Estás seguro de borrar toda tu colección de brainrot?")) {
-      setState(prev => ({ ...prev, entries: [] }));
-    }
-  };
-
-  const downloadImage = (imageUrl: string, name: string) => {
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `${name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   return (
-    <div className="min-h-screen bg-[#0f0f13] text-white p-4 md:p-8 font-sans overflow-x-hidden">
-      {/* Background decoration */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-20">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/40 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/40 rounded-full blur-[120px]"></div>
+    <div className="min-h-screen bg-[#050507] text-white selection:bg-purple-500/30 selection:text-purple-200">
+      <div className="fixed inset-0 z-0">
+        <div className="absolute top-0 left-1/4 h-[500px] w-[500px] rounded-full bg-purple-600/10 blur-[150px]" />
+        <div className="absolute bottom-0 right-1/4 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[150px]" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center gap-10">
-        
-        {/* Header */}
-        <header className="text-center space-y-4 pt-8">
-          <div className="inline-flex items-center gap-2 bg-neutral-800/50 px-4 py-2 rounded-full border border-neutral-700 backdrop-blur-sm mb-2">
-            <Grid className="w-4 h-4 text-purple-400" />
-            <span className="text-xs font-mono text-purple-200 tracking-widest uppercase">Pokedex v1.0</span>
+      <main className="relative z-10 mx-auto max-w-7xl px-4 py-12 md:px-8">
+        <header className="mb-16 flex flex-col items-center text-center">
+          <div className="mb-6 flex items-center gap-3 rounded-full border border-white/5 bg-white/5 px-4 py-2 backdrop-blur-md">
+            <Zap className="h-4 w-4 text-amber-400" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-400">Brainrot Factory v3.0</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-black italic font-comic uppercase leading-none drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+          <h1 className="mb-4 text-6xl font-black italic uppercase tracking-tighter md:text-8xl">
             Brainrot <span className="rainbow-text">Pokedex</span>
           </h1>
-          <p className="text-neutral-400 max-w-md mx-auto">
-            Selecciona la rareza y genera assets para UEFN de los memes más curseados.
+          <p className="max-w-xl text-sm font-medium leading-relaxed text-neutral-500 md:text-base">
+            Genera activos surrealistas para tus mapas de Fortnite. Diseños divertidos, absurdos y listos para triunfar.
           </p>
         </header>
 
-        {/* Action Area */}
-        <div className="flex flex-col items-center gap-6 w-full max-w-lg">
-          
-          {/* Rarity Selector */}
-          <div className="w-full grid grid-cols-5 gap-1 p-1 bg-neutral-900/80 rounded-xl border border-neutral-800">
+        <div className="mb-20 flex flex-col items-center gap-10">
+          <div className="flex w-full max-w-2xl gap-1 rounded-2xl border border-white/5 bg-neutral-900/50 p-1.5 backdrop-blur-xl">
             {(Object.keys(RARITY_CONFIG) as Rarity[]).map((r) => (
               <button
                 key={r}
-                onClick={() => !state.isLoading && setSelectedRarity(r)}
-                disabled={state.isLoading}
-                className={`
-                  relative flex flex-col items-center justify-center py-2 rounded-lg transition-all duration-200
-                  ${selectedRarity === r ? 'bg-neutral-800 shadow-md transform scale-105 z-10' : 'hover:bg-neutral-800/50 text-neutral-500'}
-                  ${selectedRarity === r ? RARITY_CONFIG[r].color : ''}
-                `}
-                title={RARITY_CONFIG[r].description}
+                onClick={() => setSelectedRarity(r)}
+                className={`flex flex-1 flex-col items-center justify-center rounded-xl py-3 transition-all duration-300 ${selectedRarity === r ? 'bg-white/10 shadow-inner' : 'hover:bg-white/5 opacity-40 hover:opacity-100'}`}
               >
-                <Star className={`w-4 h-4 mb-1 ${selectedRarity === r ? 'fill-current' : ''}`} />
-                <span className="text-[10px] uppercase font-bold tracking-tighter sm:tracking-normal">{r}</span>
-                {selectedRarity === r && (
-                   <div className={`absolute inset-0 border ${RARITY_CONFIG[r].border} rounded-lg opacity-50 pointer-events-none`}></div>
-                )}
+                <div className={`mb-1 h-1.5 w-1.5 rounded-full ${selectedRarity === r ? RARITY_CONFIG[r].color.replace('text-', 'bg-') : 'bg-neutral-600'}`} />
+                <span className={`text-[10px] font-black uppercase tracking-widest ${selectedRarity === r ? 'text-white' : 'text-neutral-500'}`}>{r}</span>
               </button>
             ))}
           </div>
 
-          <button
-            onClick={state.isLoading ? undefined : generateBrainrotBatch}
-            disabled={state.isLoading}
-            className={`
-              w-full py-6 px-8 rounded-2xl
-              bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600
-              font-black text-2xl uppercase tracking-wider font-comic
-              shadow-[0_0_40px_rgba(124,58,237,0.4)]
-              border-2 border-white/20 hover:border-white/60
-              transform transition-all duration-200
-              flex items-center justify-center gap-3
-              ${state.isLoading ? 'opacity-80 cursor-wait' : 'hover:scale-[1.02] active:scale-[0.98] hover:shadow-[0_0_60px_rgba(124,58,237,0.6)]'}
-            `}
-          >
-            {state.isLoading ? (
-              <>
-                <RefreshCw className="w-8 h-8 animate-spin" />
-                <span>Cocinando {selectedRarity}...</span>
-              </>
-            ) : (
-              <>
-                <Skull className="w-8 h-8 animate-bounce" />
-                <span>Generar {selectedRarity} (x3)</span>
-              </>
-            )}
-          </button>
+          <div className="group relative">
+            <div className="absolute -inset-1 rounded-[2rem] bg-gradient-to-r from-purple-600 to-blue-600 opacity-20 blur-2xl transition duration-1000 group-hover:opacity-40" />
+            <button
+              onClick={state.isLoading ? undefined : generateBrainrotBatch}
+              disabled={state.isLoading}
+              className={`relative flex items-center gap-4 rounded-[1.8rem] bg-white px-10 py-6 text-xl font-black uppercase tracking-widest text-black transition-all duration-300 ${state.isLoading ? 'opacity-50 cursor-wait' : 'hover:scale-105 active:scale-95'}`}
+            >
+              {state.isLoading ? (
+                <>
+                  <RefreshCw className="h-6 w-6 animate-spin" />
+                  <span>Cocinando...</span>
+                </>
+              ) : (
+                <>
+                  <Skull className="h-6 w-6" />
+                  <span>Sintetizar Pack x5</span>
+                </>
+              )}
+            </button>
+          </div>
           
           {state.error && (
-            <div className="w-full bg-red-900/30 border border-red-500/50 text-red-200 p-3 rounded-lg text-center text-sm font-bold">
+            <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-6 py-3 text-xs font-bold text-rose-400">
+              <Info className="h-4 w-4" />
               {state.error}
             </div>
           )}
         </div>
 
-        {/* Pokedex Stats/Controls */}
-        {state.entries.length > 0 && (
-          <div className="w-full flex justify-between items-end border-b border-neutral-800 pb-4">
-            <div>
-              <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                Colección <span className="bg-neutral-800 px-2 py-0.5 rounded-md text-sm text-neutral-400">{state.entries.length}</span>
-              </h3>
-            </div>
-            <button 
-              onClick={clearPokedex}
-              className="text-neutral-500 hover:text-red-400 text-sm flex items-center gap-1 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" /> Borrar Todo
-            </button>
-          </div>
-        )}
-
-        {/* Pokedex Grid */}
-        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-          
-          {state.isLoading && (
-             // Skeleton Loaders
-             <>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className={`bg-neutral-800/40 rounded-3xl p-4 h-[500px] border animate-pulse flex flex-col gap-4 ${RARITY_CONFIG[selectedRarity].border} border-dashed opacity-50`}>
-                  <div className="w-full aspect-square bg-neutral-800 rounded-2xl"></div>
-                  <div className="h-8 bg-neutral-800 rounded w-3/4 mx-auto"></div>
-                  <div className="h-4 bg-neutral-800 rounded w-full"></div>
-                  <div className="h-4 bg-neutral-800 rounded w-5/6"></div>
+        <div className="space-y-8">
+          {state.entries.length > 0 && (
+            <div className="flex items-center justify-between border-b border-white/5 pb-6">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-black uppercase tracking-tight">Colección Absurda</h2>
+                <div className="rounded-md bg-white/5 px-2 py-1 text-[10px] font-bold text-neutral-500 uppercase">
+                  {state.entries.length} Especímenes
                 </div>
-              ))}
-             </>
+              </div>
+              <button 
+                onClick={() => confirm("¿Vaciar Pokedex?") && setState(s => ({...s, entries: []}))}
+                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-500 transition-colors hover:text-rose-500"
+              >
+                <Trash2 className="h-3 w-3" />
+                Vaciar
+              </button>
+            </div>
           )}
 
-          {state.entries.map((entry) => (
-            <BrainrotCard 
-              key={entry.id} 
-              entry={entry} 
-              onGenerate3D={generateModelSheet}
-              onDownload={downloadImage}
-            />
-          ))}
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {state.isLoading && [1,2,3,4,5].map(i => (
+              <div key={i} className="flex h-[500px] flex-col overflow-hidden rounded-[2rem] bg-neutral-900/40 border border-white/5 animate-pulse">
+                <div className="aspect-square w-full bg-neutral-800/30" />
+                <div className="p-6 space-y-4">
+                  <div className="h-8 w-3/4 rounded-lg bg-neutral-800/30" />
+                  <div className="h-20 w-full rounded-lg bg-neutral-800/30" />
+                </div>
+              </div>
+            ))}
+
+            {state.entries.map((entry) => (
+              <BrainrotCard 
+                key={entry.id} 
+                entry={entry} 
+                onGenerate3D={generateModelSheet} 
+                onDownload={(url, name) => {
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${name.toLowerCase()}.png`;
+                  a.click();
+                }} 
+              />
+            ))}
+          </div>
 
           {!state.isLoading && state.entries.length === 0 && (
-            <div className="col-span-full py-20 text-center text-neutral-600 flex flex-col items-center gap-4">
-              <div className="w-24 h-24 rounded-full bg-neutral-800 flex items-center justify-center mb-2">
-                <Skull className="w-10 h-10 opacity-30" />
+            <div className="flex flex-col items-center justify-center py-40 text-center text-neutral-700">
+              <div className="mb-4 rounded-full border border-white/5 p-6">
+                <Grid className="h-10 w-10 opacity-20" />
               </div>
-              <p className="text-xl font-medium">Tu Pokedex está vacía.</p>
-              <p className="text-sm">Selecciona una rareza y dale al botón.</p>
+              <p className="max-w-[200px] text-[10px] font-bold uppercase tracking-[0.4em] opacity-40 leading-loose">
+                Esperando la próxima oleada de Brainrot
+              </p>
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 };
