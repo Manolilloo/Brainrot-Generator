@@ -1,158 +1,227 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { BrainrotState, BrainrotEntry, BrainrotConcept, Rarity } from './types';
-import { Sparkles, Skull, RefreshCw, Grid, Trash2, Download, Box, Layers, Star, Info, Zap } from 'lucide-react';
+import { Sparkles, RefreshCw, Grid, Trash2, Download, Box, Zap, Cuboid, ChevronRight, Loader2, Gamepad2, ScanLine } from 'lucide-react';
 
-const RARITY_CONFIG: Record<Rarity, { color: string; border: string; bg: string; glow: string; complexity: string }> = {
+// Extended configuration with ambient colors for the background
+const RARITY_CONFIG: Record<Rarity, { 
+  color: string; 
+  gradient: string; 
+  complexity: string;
+  ambientFrom: string; // Color for background blob 1
+  ambientTo: string;   // Color for background blob 2
+  accent: string;      // Solid accent color for flashes
+}> = {
   Common: {
-    color: "text-slate-400",
-    border: "border-slate-700/50",
-    bg: "bg-slate-800/30",
-    glow: "shadow-slate-900/20",
-    complexity: "Simple absurd shapes, funny household objects with eyes, vibrant plastic textures."
+    color: "text-slate-300",
+    gradient: "from-slate-400 to-slate-600",
+    complexity: "Simple absurd shapes, funny household objects with eyes, vibrant plastic textures.",
+    ambientFrom: "bg-slate-500/10",
+    ambientTo: "bg-gray-500/10",
+    accent: "rgb(148, 163, 184)"
   },
   Rare: {
-    color: "text-blue-400",
-    border: "border-blue-500/30",
-    bg: "bg-blue-900/20",
-    glow: "shadow-blue-500/10",
-    complexity: "Bizarre character hybrids, expressive meme-faces, shiny toy-like materials."
+    color: "text-cyan-300",
+    gradient: "from-cyan-400 to-blue-500",
+    complexity: "Bizarre character hybrids, expressive meme-faces, shiny toy-like materials.",
+    ambientFrom: "bg-cyan-500/20",
+    ambientTo: "bg-blue-600/20",
+    accent: "rgb(6, 182, 212)"
   },
   Epic: {
-    color: "text-purple-400",
-    border: "border-purple-500/30",
-    bg: "bg-purple-900/20",
-    glow: "shadow-purple-500/10",
-    complexity: "Surreal 3D entities, glowing neon parts, liquid or jelly-like shaders, very funny silhouettes."
+    color: "text-fuchsia-300",
+    gradient: "from-fuchsia-500 to-purple-600",
+    complexity: "Surreal 3D entities, glowing neon parts, liquid or jelly-like shaders, very funny silhouettes.",
+    ambientFrom: "bg-fuchsia-600/20",
+    ambientTo: "bg-purple-800/20",
+    accent: "rgb(192, 38, 211)"
   },
   Legendary: {
-    color: "text-amber-400",
-    border: "border-amber-500/30",
-    bg: "bg-amber-900/20",
-    glow: "shadow-amber-500/10",
-    complexity: "High-tier brainrot icons, legendary meme-aura, gold-plated absurd items, complex funny animations implied."
+    color: "text-amber-300",
+    gradient: "from-amber-400 to-orange-500",
+    complexity: "High-tier brainrot icons, legendary meme-aura, gold-plated absurd items, complex funny animations implied.",
+    ambientFrom: "bg-amber-500/20",
+    ambientTo: "bg-orange-600/20",
+    accent: "rgb(245, 158, 11)"
   },
   Mythic: {
-    color: "text-rose-500",
-    border: "border-rose-500/30",
-    bg: "bg-rose-900/20",
-    glow: "shadow-rose-500/20",
-    complexity: "Reality-bending brainrot, glitch-core aesthetic, hyper-vibrant 3D nightmare-cute designs."
+    color: "text-rose-300",
+    gradient: "from-rose-500 to-red-600",
+    complexity: "Reality-bending brainrot, glitch-core aesthetic, hyper-vibrant 3D nightmare-cute designs.",
+    ambientFrom: "bg-rose-600/20",
+    ambientTo: "bg-red-900/30",
+    accent: "rgb(225, 29, 72)"
   }
 };
 
 const BrainrotCard: React.FC<{
   entry: BrainrotEntry;
+  index: number;
   onGenerate3D: (entry: BrainrotEntry) => void;
   onDownload: (url: string, name: string) => void;
-}> = ({ entry, onGenerate3D, onDownload }) => {
+}> = ({ entry, index, onGenerate3D, onDownload }) => {
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const rarityStyle = RARITY_CONFIG[entry.rarity];
-
   const is3DMode = viewMode === '3d';
   const has3DModel = !!entry.modelSheetUrl;
   const currentImageUrl = is3DMode && has3DModel ? entry.modelSheetUrl : entry.imageUrl;
-  
-  const handleDownload = () => {
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (is3DMode && !has3DModel) return;
-    const suffix = is3DMode ? '-brainrot-3d' : '-brainrot-concept';
+    const suffix = is3DMode ? '-ref-sheet' : '-concept';
     onDownload(currentImageUrl!, entry.name + suffix);
   };
 
-  return (
-    <div className={`group relative flex flex-col rounded-[2rem] bg-neutral-900/40 border ${rarityStyle.border} backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl ${rarityStyle.glow} overflow-hidden`}>
-      <div className="relative aspect-square w-full overflow-hidden bg-black/20">
-        {is3DMode && !has3DModel ? (
-          <div className="flex h-full w-full flex-col items-center justify-center space-y-4 p-8 text-center bg-neutral-950/40">
-            {entry.isModelLoading ? (
-              <div className="space-y-3">
-                <RefreshCw className="mx-auto h-10 w-10 animate-spin text-purple-500" />
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-400/80">Extrayendo Esencia...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-neutral-800/50">
-                  <Box className="h-8 w-8 text-neutral-500" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-bold text-white">Asset para Modelar</p>
-                  <p className="text-[10px] text-neutral-500">Vista técnica sobre fondo gris.</p>
-                </div>
-                <button 
-                  onClick={() => onGenerate3D(entry)}
-                  className="rounded-full bg-white px-6 py-2 text-[10px] font-black uppercase tracking-widest text-black transition-transform hover:scale-105 active:scale-95"
-                >
-                  Generar 3D Ref
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
+  // Render Visual Effects Layer based on Rarity
+  const renderRarityEffects = () => {
+    switch (entry.rarity) {
+      case 'Common':
+        return <div className="absolute inset-0 rounded-3xl border border-white/5 pointer-events-none" />;
+      case 'Rare':
+        return (
           <>
-            <img 
-              src={currentImageUrl || 'https://via.placeholder.com/600x600?text=Cargando...'} 
-              alt={entry.name}
-              className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent opacity-60" />
-            
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity duration-300 group-hover:opacity-100">
-              <button 
-                onClick={handleDownload}
-                className="flex items-center gap-2 rounded-full bg-white/90 px-6 py-3 font-bold text-black shadow-xl backdrop-blur-sm transition-all hover:bg-white hover:scale-110"
-              >
-                <Download className="h-4 w-4" />
-                <span className="text-xs uppercase tracking-tighter">Guardar PNG</span>
-              </button>
+            <div className="absolute inset-0 rounded-3xl border border-cyan-500/30 shadow-[0_0_15px_-5px_rgba(6,182,212,0.3)] pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-cyan-900/10 to-transparent opacity-50 pointer-events-none" />
+          </>
+        );
+      case 'Epic':
+        return (
+          <>
+             {/* Pulsing Border */}
+            <div className="absolute -inset-[1px] rounded-[25px] bg-gradient-to-b from-fuchsia-500 to-purple-600 opacity-50 blur-[2px] animate-pulse pointer-events-none" />
+            <div className="absolute inset-0 rounded-3xl border border-fuchsia-500/50 pointer-events-none" />
+          </>
+        );
+      case 'Legendary':
+        return (
+          <>
+            {/* Rotating Gold Border */}
+            <div className="absolute -inset-[2px] rounded-[26px] bg-[conic-gradient(from_var(--shimmer-angle),theme(colors.amber.600)_0%,theme(colors.yellow.200)_10%,theme(colors.amber.600)_20%)] animate-border-rotate opacity-60 blur-[4px] pointer-events-none" />
+            <div className="absolute inset-0 rounded-3xl border border-amber-400/40 pointer-events-none" />
+            {/* Diagonal Shine */}
+            <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+                <div className="absolute inset-0 translate-x-[-100%] animate-[shine_3s_infinite] bg-gradient-to-tr from-transparent via-white/10 to-transparent" />
             </div>
           </>
-        )}
+        );
+      case 'Mythic':
+        return (
+          <>
+             {/* Aggressive Red Aura */}
+            <div className="absolute -inset-[2px] rounded-[26px] bg-gradient-to-r from-red-600 via-rose-600 to-red-600 blur-md opacity-40 animate-pulse pointer-events-none" />
+            <div className="absolute inset-0 rounded-3xl border border-red-500/60 shadow-[inset_0_0_20px_rgba(220,38,38,0.2)] pointer-events-none" />
+            {/* Floating Particles (Simulated with simple divs for performance) */}
+            <div className="absolute bottom-0 left-1/4 h-32 w-32 bg-rose-600/20 blur-[40px] animate-[pulse_2s_ease-in-out_infinite] pointer-events-none" />
+          </>
+        );
+      default:
+        return null;
+    }
+  };
 
-        <div className="absolute top-4 right-4 flex gap-1 rounded-full bg-black/50 p-1 backdrop-blur-md border border-white/10 z-30 shadow-lg">
-          <button 
-            onClick={() => setViewMode('2d')}
-            className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${viewMode === '2d' ? 'bg-white text-black shadow-md' : 'text-white/60 hover:text-white'}`}
-            title="Vista Arte"
-          >
-            <Sparkles className="h-4 w-4" />
-          </button>
-          <button 
-            onClick={() => setViewMode('3d')}
-            className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${viewMode === '3d' ? 'bg-purple-500 text-white shadow-md' : 'text-white/60 hover:text-white'}`}
-            title="Vista Modelado"
-          >
-            <Box className="h-4 w-4" />
-          </button>
-        </div>
+  return (
+    <div 
+      style={{ animationDelay: `${index * 150}ms` }}
+      className="group relative flex flex-col rounded-3xl bg-[#0a0a0f] transition-all duration-500 hover:-translate-y-2 animate-in fade-in slide-in-from-bottom-8 fill-mode-forwards opacity-0"
+    >
+      {/* Background/Border Effects Layer */}
+      {renderRarityEffects()}
 
-        <div className={`absolute left-4 top-4 flex items-center gap-1.5 rounded-full ${rarityStyle.bg} px-3 py-1 border ${rarityStyle.border} backdrop-blur-md z-20`}>
-          <div className={`h-1.5 w-1.5 rounded-full ${rarityStyle.color.replace('text-', 'bg-')} animate-pulse`} />
-          <span className={`text-[9px] font-black uppercase tracking-widest ${rarityStyle.color}`}>{entry.rarity}</span>
-        </div>
-      </div>
-
-      <div className="flex flex-grow flex-col p-6 pt-2">
-        <div className="relative -mt-10 mb-4 h-12 overflow-hidden">
-          <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-lg truncate">
-            {entry.name}
-          </h3>
-        </div>
+      {/* Content Container (clipped) */}
+      <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-3xl">
         
-        <div className="flex-grow space-y-3">
-          <div className="flex items-start gap-2 rounded-2xl bg-white/5 p-3 border border-white/5">
-            <Info className="mt-0.5 h-3 w-3 flex-shrink-0 text-neutral-500" />
-            <p className="text-[11px] font-medium leading-relaxed text-neutral-300 line-clamp-3 break-words">
+        {/* Image Area */}
+        <div className="relative aspect-[4/5] w-full overflow-hidden bg-gradient-to-br from-neutral-900 to-[#151520]">
+          {is3DMode && !has3DModel ? (
+            <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center backdrop-blur-sm">
+              {entry.isModelLoading ? (
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-300 animate-pulse">Scanning Geometry...</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 shadow-[0_0_30px_-10px_rgba(255,255,255,0.1)]">
+                    <Cuboid className="h-8 w-8 text-indigo-400" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-bold text-white">Generar Vista Técnica</h4>
+                    <p className="text-xs leading-relaxed text-slate-400">
+                      Crea una hoja de referencia isométrica perfecta para modelado en Blender/UEFN.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => onGenerate3D(entry)}
+                    className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-xs font-black uppercase tracking-wide text-black transition-transform hover:scale-110 active:scale-95 shadow-[0_0_20px_-5px_rgba(255,255,255,0.5)]"
+                  >
+                    <Box className="h-3.5 w-3.5" />
+                    Generar
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <img 
+              src={currentImageUrl || ''} 
+              alt={entry.name}
+              className="h-full w-full object-cover transition-transform duration-700 will-change-transform group-hover:scale-110"
+            />
+          )}
+
+          {/* Floating Toolbar */}
+          <div className="absolute inset-x-4 bottom-4 flex items-center justify-between rounded-2xl bg-black/80 p-2 opacity-0 backdrop-blur-xl transition-all duration-300 ring-1 ring-white/10 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 z-20">
+              <div className="flex gap-1 rounded-xl bg-white/10 p-1">
+                <button 
+                  onClick={() => setViewMode('2d')}
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${viewMode === '2d' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+                  title="Concept Art"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={() => setViewMode('3d')}
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${viewMode === '3d' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+                  title="Model Sheet"
+                >
+                  <Cuboid className="h-4 w-4" />
+                </button>
+              </div>
+
+              <button 
+                onClick={handleDownload}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black transition-transform hover:scale-105 active:scale-95 shadow-[0_0_15px_-3px_rgba(255,255,255,0.4)]"
+                title="Download Asset"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+          </div>
+
+          {/* Rarity Badge - Top Left */}
+          <div className="absolute left-4 top-4 z-20">
+             <div className={`flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 backdrop-blur-xl ring-1 border-white/10 shadow-lg`}>
+                <div className={`h-2 w-2 rounded-full bg-gradient-to-r ${rarityStyle.gradient} ${entry.rarity === 'Mythic' || entry.rarity === 'Legendary' ? 'animate-ping' : ''}`} />
+                <span className={`text-[10px] font-black uppercase tracking-wider bg-gradient-to-r ${rarityStyle.gradient} bg-clip-text text-transparent`}>{entry.rarity}</span>
+             </div>
+          </div>
+        </div>
+
+        {/* Info Section */}
+        <div className="flex flex-grow flex-col justify-between border-t border-white/5 bg-[#0e0e14] p-5 relative overflow-hidden">
+          {/* Decorative glow inside card body */}
+          <div className={`absolute -top-10 -right-10 h-32 w-32 rounded-full bg-gradient-to-r ${rarityStyle.gradient} opacity-5 blur-2xl transition-opacity group-hover:opacity-15`} />
+          
+          <div className="space-y-2 relative z-10">
+            <div className="flex items-center justify-between">
+              <h3 className="font-sans text-xl font-black tracking-tight text-white">{entry.name}</h3>
+              <div className="flex items-center gap-1 rounded-md bg-white/5 px-1.5 py-0.5 border border-white/5">
+                  <span className="text-[9px] font-mono text-neutral-500">UEFN READY</span>
+              </div>
+            </div>
+            <p className="line-clamp-2 text-xs font-medium leading-relaxed text-neutral-400">
               {entry.lore}
             </p>
           </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
-          <div className="flex items-center gap-2 text-neutral-500">
-            <Zap className="h-3 w-3" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Brainrot Certified</span>
-          </div>
-          <span className="text-[9px] font-mono text-neutral-600 uppercase">#RT-{entry.id.split('-')[0]}</span>
         </div>
       </div>
     </div>
@@ -161,11 +230,22 @@ const BrainrotCard: React.FC<{
 
 const App: React.FC = () => {
   const [selectedRarity, setSelectedRarity] = useState<Rarity>('Common');
+  const [isChangingRarity, setIsChangingRarity] = useState(false);
   const [state, setState] = useState<BrainrotState>({
     entries: [],
     isLoading: false,
     error: null,
   });
+
+  // Handle Rarity Change Animation
+  const handleRarityChange = (newRarity: Rarity) => {
+    if (newRarity === selectedRarity) return;
+    setIsChangingRarity(true);
+    setSelectedRarity(newRarity);
+    setTimeout(() => setIsChangingRarity(false), 600); // 600ms transition time
+  };
+
+  const currentRarityConfig = RARITY_CONFIG[selectedRarity];
 
   const generateBrainrotBatch = async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
@@ -189,11 +269,11 @@ const App: React.FC = () => {
 
       const textResponse = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Generate 5 unique ${selectedRarity} "Steal a Brainrot" style character concepts. 
+        contents: `Generate 3 unique ${selectedRarity} "Steal a Brainrot" style character concepts. 
         Think of surreal, funny, vibrant 3D renders that children find hilarious. 
         Mashups of food, objects, and internet memes.`,
         config: {
-          systemInstruction: `You are the ultimate Brainrot Creator. 
+          systemInstruction: `You are the ultimate Brainrot Creator for UEFN. 
           Style: "Steal a Brainrot" aesthetic. 
           Concepts: Surreal absurdism, funny silhouettes, Gen Alpha humor, vibrant toy-like renders. 
           Complexity: ${rarityInfo.complexity}. 
@@ -212,7 +292,7 @@ const App: React.FC = () => {
           const imageResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
             contents: [{ 
-              text: `HIGH-QUALITY 3D RENDER, "Steal a Brainrot" aesthetic. Vibrant neon colors, glossy plastic and jelly textures, funny distorted features, Octane Render style. ${concept.visualPrompt}. Professional lighting, clean solid studio background, ultra-vibrant and kid-appealing.` 
+              text: `HIGH-QUALITY 3D RENDER, "Steal a Brainrot" aesthetic. Vibrant neon colors, glossy plastic and jelly textures, funny distorted features, Octane Render style. ${concept.visualPrompt}. Professional lighting, clean solid studio background, ultra-vibrant and kid-appealing. Unreal Engine 5 Style.` 
             }],
           });
 
@@ -244,7 +324,7 @@ const App: React.FC = () => {
       }));
 
     } catch (err) {
-      setState(prev => ({ ...prev, isLoading: false, error: "Fallo en la fábrica de Brainrot. Intenta de nuevo." }));
+      setState(prev => ({ ...prev, isLoading: false, error: "Error en la conexión con el servidor creativo." }));
     }
   };
 
@@ -287,127 +367,231 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#050507] text-white selection:bg-purple-500/30 selection:text-purple-200">
-      <div className="fixed inset-0 z-0">
-        <div className="absolute top-0 left-1/4 h-[500px] w-[500px] rounded-full bg-purple-600/10 blur-[150px]" />
-        <div className="absolute bottom-0 right-1/4 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[150px]" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
+    <div className="min-h-screen bg-[#030305] text-white selection:bg-fuchsia-500/30 selection:text-fuchsia-100 overflow-x-hidden transition-colors duration-1000">
+      
+      {/* 
+        -----------------------------------------------------------------------
+        DYNAMIC ATMOSPHERE & TRANSITION EFFECTS
+        -----------------------------------------------------------------------
+      */}
+      
+      {/* Fixed noise overlay */}
+      <div className="fixed inset-0 z-0 opacity-[0.04] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] pointer-events-none" />
+      
+      {/* Ambient Blobs (Colors change based on rarity) */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className={`absolute top-[-10%] left-[-10%] h-[800px] w-[800px] rounded-full blur-[120px] transition-colors duration-1000 ease-in-out ${currentRarityConfig.ambientFrom} animate-[pulse_8s_ease-in-out_infinite]`} />
+        <div className={`absolute bottom-[-10%] right-[-10%] h-[800px] w-[800px] rounded-full blur-[120px] transition-colors duration-1000 ease-in-out ${currentRarityConfig.ambientTo} animate-[pulse_10s_ease-in-out_infinite_reverse]`} />
       </div>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-4 py-12 md:px-8">
-        <header className="mb-16 flex flex-col items-center text-center">
-          <div className="mb-6 flex items-center gap-3 rounded-full border border-white/5 bg-white/5 px-4 py-2 backdrop-blur-md">
-            <Zap className="h-4 w-4 text-amber-400" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-400">Brainrot Factory v3.0</span>
-          </div>
-          <h1 className="mb-4 text-6xl font-black italic uppercase tracking-tighter md:text-8xl">
-            Brainrot <span className="rainbow-text">Pokedex</span>
-          </h1>
-          <p className="max-w-xl text-sm font-medium leading-relaxed text-neutral-500 md:text-base">
-            Genera activos surrealistas para tus mapas de Fortnite. Diseños divertidos, absurdos y listos para triunfar.
-          </p>
-        </header>
+      {/* Rarity Change Flash Overlay */}
+      {isChangingRarity && (
+        <div className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center overflow-hidden">
+          {/* Main Flash */}
+          <div className="absolute inset-0 animate-flash-fade bg-current" style={{ color: currentRarityConfig.accent, opacity: 0.15 }}></div>
+          
+          {/* Scanline Sweep */}
+          <div className="absolute inset-x-0 h-[20vh] bg-gradient-to-b from-transparent via-white/20 to-transparent blur-md animate-scanline" />
+          
+          {/* Chromatic Aberration Simulation (Glitchy lines) */}
+          <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#000_3px)] opacity-10"></div>
+        </div>
+      )}
 
-        <div className="mb-20 flex flex-col items-center gap-10">
-          <div className="flex w-full max-w-2xl gap-1 rounded-2xl border border-white/5 bg-neutral-900/50 p-1.5 backdrop-blur-xl">
-            {(Object.keys(RARITY_CONFIG) as Rarity[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setSelectedRarity(r)}
-                className={`flex flex-1 flex-col items-center justify-center rounded-xl py-3 transition-all duration-300 ${selectedRarity === r ? 'bg-white/10 shadow-inner' : 'hover:bg-white/5 opacity-40 hover:opacity-100'}`}
-              >
-                <div className={`mb-1 h-1.5 w-1.5 rounded-full ${selectedRarity === r ? RARITY_CONFIG[r].color.replace('text-', 'bg-') : 'bg-neutral-600'}`} />
-                <span className={`text-[10px] font-black uppercase tracking-widest ${selectedRarity === r ? 'text-white' : 'text-neutral-500'}`}>{r}</span>
-              </button>
-            ))}
+      {/* 
+        -----------------------------------------------------------------------
+        MAIN UI
+        -----------------------------------------------------------------------
+      */}
+      <main className="relative z-10 mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-12 lg:px-12">
+        
+        {/* Header Layout */}
+        <header className="flex flex-col items-center justify-between gap-8 md:flex-row md:items-end">
+          <div className="space-y-4">
+            <div className={`inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 backdrop-blur-md transition-all duration-300 ${isChangingRarity ? 'animate-shake' : ''}`}>
+              <span className="relative flex h-2 w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75`} style={{ backgroundColor: currentRarityConfig.accent }}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2`} style={{ backgroundColor: currentRarityConfig.accent }}></span>
+              </span>
+              <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-300`} style={{ color: isChangingRarity ? currentRarityConfig.accent : '#9ca3af' }}>
+                {isChangingRarity ? 'RECONFIGURING...' : 'SYSTEM ONLINE v4.20'}
+              </span>
+            </div>
+            <div>
+              <h1 className="text-5xl font-black tracking-tighter text-white md:text-7xl lg:text-8xl drop-shadow-2xl">
+                Brainrot <span className={`bg-gradient-to-r ${currentRarityConfig.gradient} bg-clip-text text-transparent transition-all duration-700`}>for FN</span>
+              </h1>
+              <p className="mt-4 max-w-lg text-sm font-medium text-slate-400">
+                Generador de activos <span className="text-white">UEFN/Creative 2.0</span> de alta fidelidad. 
+                Crea personajes virales para tus mapas.
+              </p>
+            </div>
           </div>
+          
+          <div className="flex flex-col items-end gap-6 w-full md:w-auto">
+            {/* Rarity Selector (Tabs Style) */}
+            <div className="flex w-full md:w-auto overflow-x-auto no-scrollbar rounded-2xl border border-white/5 bg-black/40 p-1.5 backdrop-blur-xl">
+              {(Object.keys(RARITY_CONFIG) as Rarity[]).map((r) => {
+                const isActive = selectedRarity === r;
+                const config = RARITY_CONFIG[r];
+                return (
+                  <button
+                    key={r}
+                    onClick={() => handleRarityChange(r)}
+                    className={`relative flex-1 md:flex-none rounded-xl px-5 py-2.5 transition-all duration-300 ${isActive ? 'bg-white shadow-lg scale-100' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                  >
+                    {isActive && (
+                         <div className={`absolute inset-0 rounded-xl bg-gradient-to-r ${config.gradient} opacity-20 blur-md`} />
+                    )}
+                    <span className={`relative z-10 text-[11px] font-black uppercase tracking-wider ${isActive ? 'text-black' : ''}`}>
+                        {r}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="group relative">
-            <div className="absolute -inset-1 rounded-[2rem] bg-gradient-to-r from-purple-600 to-blue-600 opacity-20 blur-2xl transition duration-1000 group-hover:opacity-40" />
+            {/* Main Action Button */}
             <button
               onClick={state.isLoading ? undefined : generateBrainrotBatch}
               disabled={state.isLoading}
-              className={`relative flex items-center gap-4 rounded-[1.8rem] bg-white px-10 py-6 text-xl font-black uppercase tracking-widest text-black transition-all duration-300 ${state.isLoading ? 'opacity-50 cursor-wait' : 'hover:scale-105 active:scale-95'}`}
+              className={`group relative w-full md:w-auto flex items-center justify-center gap-4 overflow-hidden rounded-2xl bg-gradient-to-r ${currentRarityConfig.gradient} p-[1px] shadow-[0_0_40px_-10px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70`}
             >
-              {state.isLoading ? (
-                <>
-                  <RefreshCw className="h-6 w-6 animate-spin" />
-                  <span>Cocinando...</span>
-                </>
-              ) : (
-                <>
-                  <Skull className="h-6 w-6" />
-                  <span>Sintetizar Pack x5</span>
-                </>
-              )}
+               <div className="relative flex h-full w-full items-center gap-4 rounded-2xl bg-black/80 px-8 py-4 backdrop-blur-sm transition-all group-hover:bg-black/60">
+                {state.isLoading ? (
+                    <>
+                    <RefreshCw className="h-5 w-5 animate-spin text-white" />
+                    <span className="text-sm font-black tracking-wide text-white">GENERANDO...</span>
+                    </>
+                ) : (
+                    <>
+                    <Gamepad2 className="h-6 w-6 text-white group-hover:animate-bounce" />
+                    <div className="flex flex-col items-start text-left">
+                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-60 text-white">NEXT-GEN AI</span>
+                        <span className="text-lg font-black tracking-tight text-white">CREAR PACK x3</span>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-white opacity-50 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100" />
+                    </>
+                )}
+               </div>
             </button>
           </div>
-          
-          {state.error && (
-            <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-6 py-3 text-xs font-bold text-rose-400">
-              <Info className="h-4 w-4" />
-              {state.error}
-            </div>
-          )}
-        </div>
+        </header>
 
-        <div className="space-y-8">
-          {state.entries.length > 0 && (
-            <div className="flex items-center justify-between border-b border-white/5 pb-6">
-              <div className="flex items-center gap-4">
-                <h2 className="text-xl font-black uppercase tracking-tight">Colección Absurda</h2>
-                <div className="rounded-md bg-white/5 px-2 py-1 text-[10px] font-bold text-neutral-500 uppercase">
-                  {state.entries.length} Especímenes
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+        {/* Content Grid */}
+        <section className="min-h-[600px]">
+          {state.isLoading ? (
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="relative flex aspect-[4/5] flex-col justify-between overflow-hidden rounded-3xl border border-white/5 bg-[#0e0e14] p-6">
+                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent animate-[shimmer_2s_infinite] -translate-y-full" />
+                   <div className="flex gap-4 z-10">
+                     <div className="h-16 w-16 rounded-2xl bg-white/5" />
+                     <div className="flex-1 space-y-3 pt-2">
+                        <div className="h-4 w-24 rounded bg-white/5" />
+                        <div className="h-3 w-32 rounded bg-white/5" />
+                     </div>
+                   </div>
+                   <div className="space-y-3 z-10">
+                      <div className="h-3 w-full rounded bg-white/5" />
+                      <div className="h-3 w-2/3 rounded bg-white/5" />
+                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+                {state.entries.map((entry, index) => (
+                  <BrainrotCard 
+                    key={entry.id}
+                    index={index}
+                    entry={entry} 
+                    onGenerate3D={generateModelSheet} 
+                    onDownload={(url, name) => {
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${name.toLowerCase()}.png`;
+                      a.click();
+                    }} 
+                  />
+                ))}
               </div>
+
+              {state.entries.length === 0 && (
+                <div className="flex h-[400px] w-full flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 backdrop-blur-sm transition-colors duration-500" style={{ borderColor: isChangingRarity ? currentRarityConfig.accent : 'rgba(255,255,255,0.1)' }}>
+                  <div className="rounded-full bg-black/50 p-8 shadow-2xl ring-1 ring-white/10">
+                    <ScanLine className="h-12 w-12 opacity-50 transition-colors duration-500" style={{ color: currentRarityConfig.accent }} />
+                  </div>
+                  <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
+                    Sistema en espera de input
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* Footer Controls */}
+        {state.entries.length > 0 && !state.isLoading && (
+           <div className="flex justify-end border-t border-white/5 pt-8 pb-20">
               <button 
-                onClick={() => confirm("¿Vaciar Pokedex?") && setState(s => ({...s, entries: []}))}
-                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-500 transition-colors hover:text-rose-500"
+                onClick={() => confirm("¿Desea purgar los datos actuales?") && setState(s => ({...s, entries: []}))}
+                className="group flex items-center gap-2 rounded-xl px-6 py-3 text-xs font-bold uppercase tracking-widest text-neutral-500 transition-all hover:bg-rose-500/10 hover:text-rose-500"
               >
-                <Trash2 className="h-3 w-3" />
-                Vaciar
+                <Trash2 className="h-4 w-4 transition-transform group-hover:rotate-12" />
+                Purgar Cache
               </button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {state.isLoading && [1,2,3,4,5].map(i => (
-              <div key={i} className="flex h-[500px] flex-col overflow-hidden rounded-[2rem] bg-neutral-900/40 border border-white/5 animate-pulse">
-                <div className="aspect-square w-full bg-neutral-800/30" />
-                <div className="p-6 space-y-4">
-                  <div className="h-8 w-3/4 rounded-lg bg-neutral-800/30" />
-                  <div className="h-20 w-full rounded-lg bg-neutral-800/30" />
-                </div>
-              </div>
-            ))}
-
-            {state.entries.map((entry) => (
-              <BrainrotCard 
-                key={entry.id} 
-                entry={entry} 
-                onGenerate3D={generateModelSheet} 
-                onDownload={(url, name) => {
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${name.toLowerCase()}.png`;
-                  a.click();
-                }} 
-              />
-            ))}
-          </div>
-
-          {!state.isLoading && state.entries.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-40 text-center text-neutral-700">
-              <div className="mb-4 rounded-full border border-white/5 p-6">
-                <Grid className="h-10 w-10 opacity-20" />
-              </div>
-              <p className="max-w-[200px] text-[10px] font-bold uppercase tracking-[0.4em] opacity-40 leading-loose">
-                Esperando la próxima oleada de Brainrot
-              </p>
-            </div>
-          )}
-        </div>
+           </div>
+        )}
       </main>
+      
+      <style>{`
+        @property --shimmer-angle {
+          syntax: '<angle>';
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @keyframes border-rotate {
+          from { --shimmer-angle: 0deg; }
+          to { --shimmer-angle: 360deg; }
+        }
+        @keyframes shine {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(100%); }
+        }
+        @keyframes shimmer {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
+        @keyframes flash-fade {
+          0% { opacity: 0.8; transform: scale(1.05); }
+          100% { opacity: 0; transform: scale(1); }
+        }
+        @keyframes scanline {
+          0% { transform: translateY(-100vh); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
+        }
+        .animate-border-rotate {
+          animation: border-rotate 4s linear infinite;
+        }
+        .animate-flash-fade {
+          animation: flash-fade 0.6s ease-out forwards;
+        }
+        .animate-scanline {
+          animation: scanline 0.6s linear forwards;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };
