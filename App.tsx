@@ -11,6 +11,7 @@ const RARITY_CONFIG: Record<Rarity, {
   ambientFrom: string; // Color for background blob 1
   ambientTo: string;   // Color for background blob 2
   accent: string;      // Solid accent color for flashes
+  glow: string;        // Box shadow color
 }> = {
   Common: {
     color: "text-slate-300",
@@ -18,7 +19,8 @@ const RARITY_CONFIG: Record<Rarity, {
     complexity: "Simple absurd shapes, funny household objects with eyes, vibrant plastic textures.",
     ambientFrom: "bg-slate-500/10",
     ambientTo: "bg-gray-500/10",
-    accent: "rgb(148, 163, 184)"
+    accent: "rgb(148, 163, 184)",
+    glow: "rgba(148, 163, 184, 0.5)"
   },
   Rare: {
     color: "text-cyan-300",
@@ -26,7 +28,8 @@ const RARITY_CONFIG: Record<Rarity, {
     complexity: "Bizarre character hybrids, expressive meme-faces, shiny toy-like materials.",
     ambientFrom: "bg-cyan-500/20",
     ambientTo: "bg-blue-600/20",
-    accent: "rgb(6, 182, 212)"
+    accent: "rgb(6, 182, 212)",
+    glow: "rgba(6, 182, 212, 0.6)"
   },
   Epic: {
     color: "text-fuchsia-300",
@@ -34,7 +37,8 @@ const RARITY_CONFIG: Record<Rarity, {
     complexity: "Surreal 3D entities, glowing neon parts, liquid or jelly-like shaders, very funny silhouettes.",
     ambientFrom: "bg-fuchsia-600/20",
     ambientTo: "bg-purple-800/20",
-    accent: "rgb(192, 38, 211)"
+    accent: "rgb(192, 38, 211)",
+    glow: "rgba(192, 38, 211, 0.6)"
   },
   Legendary: {
     color: "text-amber-300",
@@ -42,7 +46,8 @@ const RARITY_CONFIG: Record<Rarity, {
     complexity: "High-tier brainrot icons, legendary meme-aura, gold-plated absurd items, complex funny animations implied.",
     ambientFrom: "bg-amber-500/20",
     ambientTo: "bg-orange-600/20",
-    accent: "rgb(245, 158, 11)"
+    accent: "rgb(245, 158, 11)",
+    glow: "rgba(245, 158, 11, 0.7)"
   },
   Mythic: {
     color: "text-rose-300",
@@ -50,7 +55,8 @@ const RARITY_CONFIG: Record<Rarity, {
     complexity: "Reality-bending brainrot, glitch-core aesthetic, hyper-vibrant 3D nightmare-cute designs.",
     ambientFrom: "bg-rose-600/20",
     ambientTo: "bg-red-900/30",
-    accent: "rgb(225, 29, 72)"
+    accent: "rgb(225, 29, 72)",
+    glow: "rgba(225, 29, 72, 0.8)"
   }
 };
 
@@ -122,8 +128,11 @@ const BrainrotCard: React.FC<{
 
   return (
     <div 
-      style={{ animationDelay: `${index * 150}ms` }}
-      className="group relative flex flex-col rounded-3xl bg-[#0a0a0f] transition-all duration-500 hover:-translate-y-2 animate-in fade-in slide-in-from-bottom-8 fill-mode-forwards opacity-0"
+      style={{ 
+        animationDelay: `${index * 150}ms`,
+        '--rarity-glow': rarityStyle.glow
+      } as React.CSSProperties}
+      className="group relative flex flex-col rounded-3xl bg-[#0a0a0f] transition-all duration-500 hover:-translate-y-3 hover:scale-[1.02] hover:shadow-[0_20px_40px_-15px_var(--rarity-glow)] ring-1 ring-white/0 hover:ring-white/20 animate-in fade-in slide-in-from-bottom-8 fill-mode-forwards opacity-0"
     >
       {/* Background/Border Effects Layer */}
       {renderRarityEffects()}
@@ -242,7 +251,7 @@ const App: React.FC = () => {
     if (newRarity === selectedRarity) return;
     setIsChangingRarity(true);
     setSelectedRarity(newRarity);
-    setTimeout(() => setIsChangingRarity(false), 600); // 600ms transition time
+    setTimeout(() => setIsChangingRarity(false), 800); // 800ms transition time to match animations
   };
 
   const currentRarityConfig = RARITY_CONFIG[selectedRarity];
@@ -384,17 +393,32 @@ const App: React.FC = () => {
         <div className={`absolute bottom-[-10%] right-[-10%] h-[800px] w-[800px] rounded-full blur-[120px] transition-colors duration-1000 ease-in-out ${currentRarityConfig.ambientTo} animate-[pulse_10s_ease-in-out_infinite_reverse]`} />
       </div>
 
-      {/* Rarity Change Flash Overlay */}
+      {/* Rarity Change Flash Overlay & Cinematic Text */}
       {isChangingRarity && (
-        <div className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center overflow-hidden">
+        <div className="fixed inset-0 z-[100] pointer-events-none flex flex-col items-center justify-center overflow-hidden backdrop-blur-[2px]">
           {/* Main Flash */}
-          <div className="absolute inset-0 animate-flash-fade bg-current" style={{ color: currentRarityConfig.accent, opacity: 0.15 }}></div>
+          <div className="absolute inset-0 animate-flash-fade bg-black" style={{ opacity: 0.4 }}></div>
           
-          {/* Scanline Sweep */}
-          <div className="absolute inset-x-0 h-[20vh] bg-gradient-to-b from-transparent via-white/20 to-transparent blur-md animate-scanline" />
-          
-          {/* Chromatic Aberration Simulation (Glitchy lines) */}
-          <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#000_3px)] opacity-10"></div>
+          {/* Central Rarity Text Announcement */}
+          <div className="relative z-10 flex flex-col items-center justify-center">
+             <h2 
+               className="text-[12vw] md:text-[150px] font-black uppercase tracking-tighter italic opacity-0 animate-slam"
+               style={{ 
+                 color: 'transparent',
+                 WebkitTextStroke: `2px ${currentRarityConfig.accent}`,
+                 textShadow: `0 0 100px ${currentRarityConfig.glow}`
+               }}
+             >
+               {selectedRarity}
+             </h2>
+             <div 
+               className="h-2 w-full max-w-[500px] scale-x-0 animate-expand-line"
+               style={{ backgroundColor: currentRarityConfig.accent, boxShadow: `0 0 40px ${currentRarityConfig.glow}` }}
+             />
+          </div>
+
+          {/* Existing Scanline Sweep */}
+          <div className="absolute inset-x-0 top-0 h-[30vh] bg-gradient-to-b from-transparent via-white/10 to-transparent blur-md animate-scanline" />
         </div>
       )}
 
@@ -438,12 +462,10 @@ const App: React.FC = () => {
                   <button
                     key={r}
                     onClick={() => handleRarityChange(r)}
-                    className={`relative flex-1 md:flex-none rounded-xl px-5 py-2.5 transition-all duration-300 ${isActive ? 'bg-white shadow-lg scale-100' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                    style={isActive ? { backgroundColor: config.accent, boxShadow: `0 0 20px -5px ${config.glow}` } : {}}
+                    className={`relative flex-1 md:flex-none rounded-xl px-5 py-2.5 transition-all duration-300 ${isActive ? 'scale-105 text-black font-extrabold' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
                   >
-                    {isActive && (
-                         <div className={`absolute inset-0 rounded-xl bg-gradient-to-r ${config.gradient} opacity-20 blur-md`} />
-                    )}
-                    <span className={`relative z-10 text-[11px] font-black uppercase tracking-wider ${isActive ? 'text-black' : ''}`}>
+                    <span className={`relative z-10 text-[11px] font-black uppercase tracking-wider`}>
                         {r}
                     </span>
                   </button>
@@ -575,6 +597,17 @@ const App: React.FC = () => {
           50% { opacity: 1; }
           100% { transform: translateY(100vh); opacity: 0; }
         }
+        @keyframes slam {
+          0% { transform: scale(3); opacity: 0; letter-spacing: 2rem; filter: blur(20px); }
+          40% { transform: scale(1); opacity: 1; letter-spacing: normal; filter: blur(0px); }
+          80% { transform: scale(1); opacity: 1; filter: blur(0px); }
+          100% { transform: scale(1.2); opacity: 0; filter: blur(10px); }
+        }
+        @keyframes expand-line {
+          0% { transform: scaleX(0); opacity: 1; }
+          50% { transform: scaleX(1); opacity: 1; }
+          100% { transform: scaleX(1.5); opacity: 0; }
+        }
         .animate-border-rotate {
           animation: border-rotate 4s linear infinite;
         }
@@ -582,7 +615,13 @@ const App: React.FC = () => {
           animation: flash-fade 0.6s ease-out forwards;
         }
         .animate-scanline {
-          animation: scanline 0.6s linear forwards;
+          animation: scanline 0.8s linear forwards;
+        }
+        .animate-slam {
+          animation: slam 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        .animate-expand-line {
+          animation: expand-line 0.8s ease-out forwards;
         }
         .no-scrollbar::-webkit-scrollbar {
           display: none;
